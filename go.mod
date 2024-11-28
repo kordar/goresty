@@ -1,5 +1,7 @@
 module github.com/kordar/goresty
 
-go 1.16
+go 1.20
 
-require github.com/go-resty/resty/v2 v2.12.0
+require github.com/go-resty/resty/v2 v2.16.2
+
+require golang.org/x/net v0.27.0 // indirect
