@@ -1,33 +1,44 @@
 package goresty_test
 
 import (
+	"encoding/json"
 	"github.com/go-resty/resty/v2"
 	"github.com/kordar/goresty"
-	"log"
+	"net/http"
+	"net/http/httptest"
 	"testing"
-	"time"
 )
 
-var feign = goresty.NewFeign(nil).OnBeforeRequest(func(client *resty.Client, request *resty.Request) error {
-	request.EnableTrace()
-	request.SetHeader("Auth2", "MMM")
-	if request.Header.Get("Auth") != "" {
-		log.Println("=====>>>>>>>>", request.Header.Get("Auth"))
-	}
-	return nil
-}).Options(func(client *resty.Client) {
-	client.SetBaseURL("https://www.sina22.com")
-	client.SetDebug(true)
-	client.SetTimeout(time.Second * 3)
-	client.SetRetryCount(2)
-	client.SetRetryWaitTime(3 * time.Second)
-}).OnError(func(request *resty.Request, err error) {
-	log.Println("xxxxxxxxxxxxxx", err)
-})
-
 func TestGetHeader(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Auth") != "AAABB" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("Auth2") != "MMM" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	feign := goresty.NewFeign(nil).
+		OnBeforeRequest(func(client *resty.Client, request *resty.Request) error {
+			request.SetHeader("Auth2", "MMM")
+			return nil
+		}).
+		Options(func(client *resty.Client) {
+			client.SetBaseURL(srv.URL)
+		})
+
 	resp, err := feign.Request().SetHeaders(map[string]string{"Auth": "AAABB"}).Get("/")
-	log.Println("=========", resp, err)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		t.Fatalf("unexpected status code: %d", resp.StatusCode())
+	}
 }
 
 func TestGetBody(t *testing.T) {
@@ -35,8 +46,32 @@ func TestGetBody(t *testing.T) {
 		Msg  string `json:"msg"`
 		Code int    `json:"code"`
 	}{}
-	resp, err := feign.Request().SetHeaders(map[string]string{"Auth": "AAABB"}).
-		SetBody(&body).
-		Get("http://192.168.48.125:82/prod-api/md/basic/list?pageNum=1&pageSize=10&foodNumId=&tenantId=101")
-	log.Println("=========", resp, err, body)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Auth") != "AAABB" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"msg": "ok", "code": 200})
+	}))
+	defer srv.Close()
+
+	feign := goresty.NewFeign(nil).Options(func(client *resty.Client) {
+		client.SetBaseURL(srv.URL)
+	})
+
+	resp, err := feign.Request().
+		SetHeaders(map[string]string{"Auth": "AAABB"}).
+		SetResult(&body).
+		Get("/")
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		t.Fatalf("unexpected status code: %d", resp.StatusCode())
+	}
+	if body.Msg != "ok" || body.Code != 200 {
+		t.Fatalf("unexpected body: %+v", body)
+	}
 }

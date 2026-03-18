@@ -1,18 +1,34 @@
 package goresty
 
-import "github.com/go-resty/resty/v2"
+import (
+	"github.com/go-resty/resty/v2"
+	"sync"
+)
 
 var client *resty.Client
+var clientMu sync.RWMutex
 
 func InitClient(c *resty.Client) {
+	clientMu.Lock()
 	client = c
+	clientMu.Unlock()
 }
 
 func GetClient() *resty.Client {
+	clientMu.RLock()
+	c := client
+	clientMu.RUnlock()
+	if c != nil {
+		return c
+	}
+
+	clientMu.Lock()
 	if client == nil {
 		client = resty.New()
 	}
-	return client
+	c = client
+	clientMu.Unlock()
+	return c
 }
 
 // ------------------------ GET -----------------------------------

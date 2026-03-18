@@ -25,6 +25,10 @@ func NewFeignWithWithLocalAddr(localAddr net.Addr) *Feign {
 	return NewFeign(resty.NewWithLocalAddr(localAddr))
 }
 
+func NewFeignWithLocalAddr(localAddr net.Addr) *Feign {
+	return NewFeignWithWithLocalAddr(localAddr)
+}
+
 func (r *Feign) GetClient() *resty.Client {
 	return r.client
 }
@@ -32,26 +36,34 @@ func (r *Feign) GetClient() *resty.Client {
 // ------------------- error ----------------------
 
 func (r *Feign) Options(f func(*resty.Client)) *Feign {
-	f(r.client)
+	if f != nil {
+		f(r.client)
+	}
 	return r
 }
 
 // ------------------- error ----------------------
 
 func (r *Feign) OnError(h resty.ErrorHook) *Feign {
-	r.client.OnError(h)
+	if h != nil {
+		r.client.OnError(h)
+	}
 	return r
 }
 
 //  ---------------------- middleware -----------------------------
 
 func (r *Feign) OnBeforeRequest(m resty.RequestMiddleware) *Feign {
-	r.client.OnBeforeRequest(m)
+	if m != nil {
+		r.client.OnBeforeRequest(m)
+	}
 	return r
 }
 
 func (r *Feign) OnAfterResponse(m resty.ResponseMiddleware) *Feign {
-	r.client.OnAfterResponse(m)
+	if m != nil {
+		r.client.OnAfterResponse(m)
+	}
 	return r
 }
 
