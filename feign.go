@@ -1,9 +1,11 @@
 package goresty
 
 import (
-	"github.com/go-resty/resty/v2"
+	"context"
 	"net"
 	"net/http"
+
+	"github.com/go-resty/resty/v2"
 )
 
 type Feign struct {
@@ -21,19 +23,17 @@ func NewFeignWithClient(hc *http.Client) *Feign {
 	return NewFeign(resty.NewWithClient(hc))
 }
 
-func NewFeignWithWithLocalAddr(localAddr net.Addr) *Feign {
+func NewFeignWithLocalAddr(localAddr net.Addr) *Feign {
 	return NewFeign(resty.NewWithLocalAddr(localAddr))
 }
 
-func NewFeignWithLocalAddr(localAddr net.Addr) *Feign {
-	return NewFeignWithWithLocalAddr(localAddr)
+func NewFeignWithWithLocalAddr(localAddr net.Addr) *Feign {
+	return NewFeignWithLocalAddr(localAddr)
 }
 
 func (r *Feign) GetClient() *resty.Client {
 	return r.client
 }
-
-// ------------------- error ----------------------
 
 func (r *Feign) Options(f func(*resty.Client)) *Feign {
 	if f != nil {
@@ -42,16 +42,12 @@ func (r *Feign) Options(f func(*resty.Client)) *Feign {
 	return r
 }
 
-// ------------------- error ----------------------
-
 func (r *Feign) OnError(h resty.ErrorHook) *Feign {
 	if h != nil {
 		r.client.OnError(h)
 	}
 	return r
 }
-
-//  ---------------------- middleware -----------------------------
 
 func (r *Feign) OnBeforeRequest(m resty.RequestMiddleware) *Feign {
 	if m != nil {
@@ -67,7 +63,10 @@ func (r *Feign) OnAfterResponse(m resty.ResponseMiddleware) *Feign {
 	return r
 }
 
-// Request Request请求调用方式
 func (r *Feign) Request() *resty.Request {
 	return r.client.R()
+}
+
+func (r *Feign) RequestWithContext(ctx context.Context) *resty.Request {
+	return r.client.R().SetContext(ctx)
 }
